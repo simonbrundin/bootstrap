@@ -7,7 +7,7 @@ echo "Installing Nushell via devbox global..."
 devbox global add nushell
 
 echo "Setting up repos directory..."
-mkdir -p "$HOME/repos"
+mkdir "$HOME/repos"
 
 if [ -d "$HOME/repos/simon-cli" ]; then
   echo "Simon CLI directory exists, pulling latest changes..."
