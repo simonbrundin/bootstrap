@@ -6,9 +6,16 @@ curl -fsSL https://get.jetify.com/devbox | bash
 echo "Installing Nushell via devbox global..."
 devbox global add nushell
 
-echo "Cloning Simon CLI from GitHub..."
-mkdir "$HOME/repos"
-git clone https://github.com/simon/simon-cli "$HOME/repos/simon-cli"
+echo "Setting up repos directory..."
+mkdir -p "$HOME/repos"
+
+if [ -d "$HOME/repos/simon-cli" ]; then
+  echo "Simon CLI directory exists, pulling latest changes..."
+  cd "$HOME/repos/simon-cli" && git pull
+else
+  echo "Cloning Simon CLI from GitHub..."
+  git clone https://github.com/simon/simon-cli "$HOME/repos/simon-cli"
+fi
 
 echo "Running simon bootstrap via nushell..."
-nu -c "$HOME/repos/simon-cli/simon bootstrap"
+nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
