@@ -1,4 +1,5 @@
 #!/bin/bash
+echo "version: 0.0.1"
 
 echo "Installing Devbox..."
 curl -fsSL https://get.jetify.com/devbox | bash
