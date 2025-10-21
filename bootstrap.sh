@@ -1,5 +1,9 @@
 #!/bin/bash
 echo "version: 0.0.1"
+# TODO: Fråga efter användarns GitHub användarnamn
+
+# Konfigurera datorns dotfiles via Chezmoi
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply $GITHUB_USERNAME
 
 echo "Installing Devbox..."
 curl -fsSL https://get.jetify.com/devbox | bash
