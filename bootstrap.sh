@@ -21,6 +21,7 @@ if [ -d "$HOME/repos/dotfiles" ]; then
   cd "$HOME/repos/dotfiles" && git pull
 else
   echo "Cloning Dotfiles from GitHub..."
+  printf "\n"
   git clone https://github.com/simon/dotfiles "$HOME/repos/dotfiles"
 fi
 
