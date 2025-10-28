@@ -1,10 +1,9 @@
 #!/bin/bash
-echo "version: 0.0.1"
-# TODO: Fråga efter användarns GitHub användarnamn
-read -r -p "Ange användarnamn till GitHub: " GITHUB_USERNAME
+# echo "version: 0.0.1"
+# read -r -p "Ange användarnamn till GitHub: " GITHUB_USERNAME
 
 # Konfigurera datorns dotfiles via Chezmoi
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USERNAME"
+# sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USERNAME"
 
 # echo "Installing Devbox..."
 # curl -fsSL https://get.jetify.com/devbox | bash
@@ -13,8 +12,17 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USERNAME"
 # devbox global add nushell
 
 # Skapa repos-mapp
-echo "Setting up repos directory..."
+echo "Setting up 'repos' directory..."
 mkdir "$HOME/repos"
+
+# Klona Dotfiles
+if [ -d "$HOME/repos/dotfiles" ]; then
+  echo "Dotfiles directory exists, pulling latest changes..."
+  cd "$HOME/repos/dotfiles" && git pull
+else
+  echo "Cloning Dotfiles from GitHub..."
+  git clone https://github.com/simon/dotfiles "$HOME/repos/dotfiles"
+fi
 
 # Klona Simon CLI
 if [ -d "$HOME/repos/simon-cli" ]; then
