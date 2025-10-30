@@ -13,6 +13,7 @@
 
 # Setup SSH-keys to GitHub
 
+
 # Standardnamn för nyckeln
 DEFAULT_NAME="Omarchy"
 KEY_NAME=""
