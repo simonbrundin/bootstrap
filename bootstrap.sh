@@ -90,5 +90,15 @@ else
   git clone git@github.com:simonbrundin/simon-cli.git "$HOME/repos/simon-cli"
 fi
 
+# Insatllera paket via Brew -----------------------------------------------------------------------
+brew bundle --file=$HOME/repos/dotfiles/brew/.Brewfile
+
+# Sätt upp dotfiles med Stow ----------------------------------------------------------------------
+cd "$HOME/repos/dotfiles"
+for dir in */; do stow "$dir"; done
+for dir in */; do
+    stow --adopt --verbose "$dir"  # Add --verbose for more output if needed
+done
+# Sätt
 # echo "Running simon bootstrap via nushell..."
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
