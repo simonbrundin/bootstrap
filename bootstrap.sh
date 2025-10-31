@@ -93,12 +93,27 @@ fi
 # Insatllera paket via Brew -----------------------------------------------------------------------
 brew bundle --file=$HOME/repos/dotfiles/brew/.Brewfile
 
+# Sätt nushell som standardshell ----------------------------------------------------------------------
+NU_PATH=$(brew --prefix)/bin/nu
+CURRENT_SHELL=$(getent passwd $USER | cut -d: -f7)
+if [[ "$CURRENT_SHELL" != "$NU_PATH" ]]; then
+    echo "Setting nushell as default shell..."
+    echo "Adding $NU_PATH to /etc/shells..."
+    echo "$NU_PATH" | sudo tee -a /etc/shells > /dev/null
+    sudo usermod -s $NU_PATH $USER
+else
+    echo "Nushell is already the default shell."
+fi
+
 # Sätt upp dotfiles med Stow ----------------------------------------------------------------------
 cd "$HOME/repos/dotfiles"
 for dir in */; do stow "$dir"; done
 for dir in */; do
     stow --adopt --verbose "$dir"  # Add --verbose for more output if needed
 done
+
+# Setup Atuin -------------------------------------------------------------------------------------
+mkdir ~/.local/share/atuin/
 # Sätt
 # echo "Running simon bootstrap via nushell..."
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
