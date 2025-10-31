@@ -25,8 +25,6 @@ fi
 
 
 DEFAULT_NAME="Omarchy"
-KEY_NAME=""
-
 # --- FRÅGA EFTER NAMN ---
 echo -n "Ange namn på SSH-nyckeln [default: $DEFAULT_NAME]: "
 read USER_INPUT
