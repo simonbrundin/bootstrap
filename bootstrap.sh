@@ -21,25 +21,17 @@ else
 fi
 
 # Setup SSH-keys to GitHub
-DEFAULT_NAME="Omarchy"  # Se till att det här är satt!
+DEFAULT_NAME="Omarchy"  # LÄGG TILL DEN HÄR RADEN OM DEN SAKNAS!
 KEY_NAME=""
 
 # --- FRÅGA EFTER NAMN ---
 echo -n "Ange namn på SSH-nyckeln [default: $DEFAULT_NAME]: "
 read USER_INPUT
-KEY_NAME="${USER_INPUT:-$DEFAULT_NAME}"  # Med kolon för tom/default!
+KEY_NAME="${USER_INPUT:-$DEFAULT_NAME}"  # Med kolon för tom/default
 
-# Kontrollera att namnet inte är tomt (flytta hit om det inte är)
+# Kontrollera att namnet inte är tomt – DIREKT HÄR!
 if [[ -z "$KEY_NAME" ]]; then
     echo "Fel: Namn på nyckeln får inte vara tomt!"
-    exit 1
-fi
-
-
-# --- 1. Kontrollera inloggning ---
-if ! gh auth status >/dev/null 2>&1; then
-    echo "Du är inte inloggad på GitHub CLI."
-    echo "Kör: gh auth login"
     exit 1
 fi
 
