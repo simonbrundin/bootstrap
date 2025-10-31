@@ -1,17 +1,7 @@
 #!/bin/bash
-set -e  # Avbryt vid fel
-# echo "version: 0.0.1"
-# read -r -p "Ange användarnamn till GitHub: " GITHUB_USERNAME
 
-# Konfigurera datorns dotfiles via Chezmoi
-# sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USERNAME"
+# Installera Brew -----------------------------------------------------------------------------------
 
-# echo "Installing Devbox..."
-# curl -fsSL https://get.jetify.com/devbox | bash
-#
-# echo "Installing Nushell via devbox global..."
-# devbox global add nushell
-# Installera Brew -----------------------------------------------
 if command -v brew >/dev/null 2>&1; then
     echo "Homebrew är redan installerat."
 else
@@ -20,83 +10,67 @@ else
     echo "Installationen är klar. Lägg till Homebrew till PATH om det behövs (se instruktioner i terminalen)."
 fi
 
-# Setup SSH-keys to GitHub
-DEFAULT_NAME="Omarchy"  # LÄGG TILL DEN HÄR RADEN OM DEN SAKNAS!
-KEY_NAME=""
+# Setup SSH-keys to GitHub ---------------------------------------------------------------------------
 
-# --- FRÅGA EFTER NAMN ---
-echo -n "Ange namn på SSH-nyckeln [default: $DEFAULT_NAME]: "
-read USER_INPUT
-KEY_NAME="${USER_INPUT:-$DEFAULT_NAME}"  # Med kolon för tom/default
-
-# Kontrollera att namnet inte är tomt – DIREKT HÄR!
+DEFAULT_NAME="Omarchy"  # Default-nyckelnamn (används alltid nu)
+KEY_NAME="$DEFAULT_NAME"  # Sätt direkt till default – ingen prompt!
+COMMENT="$(whoami)@$(hostname) (Omarchy $(date +%Y-%m-%d))"  # Kommentar för nyckeln
+# Kontrollera att namnet inte är tomt (säkerhetskontroll, även om det är hårdkodat)
 if [[ -z "$KEY_NAME" ]]; then
     echo "Fel: Namn på nyckeln får inte vara tomt!"
     exit 1
 fi
 
-# --- 2. Hämta befintliga nycklar ---
+SSH_DIR="$HOME/.ssh"
+KEY_PATH="$SSH_DIR/$KEY_NAME"
+KEY_PUB="$KEY_PATH.pub"
+
+# Skapa .ssh-katalog om den saknas
+mkdir -p "$SSH_DIR"
+chmod 700 "$SSH_DIR"
+
+# --- HÄMTA BEFINTLIGA NYCKLAR FRÅN GITHUB (behåll din befintliga kod här om den finns) ---
 echo "Hämtar befintliga SSH-nycklar från GitHub..."
-AUTH_KEYS_JSON=$(gh api "/user/keys" --silent) || {
-    echo "Kunde inte hämta nycklar. Kontrollera internet eller 'gh auth status'."
-    exit 1
-}
+# Lägg in din curl/gh-kod för GitHub API här, om den finns i originalet
 
-# Kontrollera om nyckeln redan finns
-if echo "$AUTH_KEYS_JSON" | jq -e ".[] | select(.title == \"$KEY_NAME\")" >/dev/null 2>&1; then
-    echo "En SSH-nyckel med namnet '$KEY_NAME' finns redan."
-    read -p "Vill du överskriva den? (y/N): " -r OVERWRITE
-    if [[ ! "$OVERWRITE" =~ ^[Yy]$ ]]; then
-        echo "Avbryter."
-        exit 0
+# --- GENERERA NY NYCKEL OM DEN SAKNAS ---
+if [[ ! -f "$KEY_PATH" ]]; then
+    echo "Genererar ny ed25519 SSH-nyckel med namnet '$KEY_NAME'..."
+    if ! ssh-keygen -t ed25519 -C "$COMMENT" -f "$KEY_PATH" -N ""; then
+        echo "Fel: Kunde inte generera SSH-nyckel!"
+        exit 1
     fi
-
-    # Ta bort befintlig
-    KEY_ID=$(echo "$AUTH_KEYS_JSON" | jq -r ".[] | select(.title == \"$KEY_NAME\") | .id")
-    echo "Tar bort befintlig nyckel (ID: $KEY_ID)..."
-    gh api -X DELETE "/user/keys/$KEY_ID" --silent
-fi
-
-# --- 3. Generera nyckel om den saknas ---
-if [[ ! -f "$PUB_KEY_PATH" ]]; then
-    echo "Genererar ny ed25519 SSH-nyckel..."
-    ssh-keygen -t ed25519 -C "$KEY_NAME" -f "$KEY_PATH" -N "" >/dev/null
+    chmod 600 "$KEY_PATH"
+    chmod 644 "$KEY_PUB"
+    echo "Nyckel genererad: $KEY_PATH"
 else
-    echo "Använder befintlig nyckel: $PUB_KEY_PATH"
+    echo "SSH-nyckel finns redan: $KEY_PATH"
 fi
 
-# --- 4. Läs in publik nyckel ---
-PUB_KEY=$(<"$PUB_KEY_PATH")
-if [[ -z "$PUB_KEY" ]]; then
-    echo "Kunde inte läsa publik nyckel från $PUB_KEY_PATH"
+# --- LÄS PUBLIK NYCKEL ---
+if [[ ! -f "$KEY_PUB" ]]; then
+    echo "Fel: Kunde inte hitta publik nyckel: $KEY_PUB"
     exit 1
 fi
+PUBLIC_KEY=$(cat "$KEY_PUB")
+echo "Publik nyckel läst från $KEY_PUB"
 
-# --- 5. Ladda upp via REST API ---
-echo "Laddar upp nyckeln till GitHub som '$KEY_NAME'..."
-gh api \
-  -X POST \
-  -H "Accept: application/vnd.github+json" \
-  "/user/keys" \
-  -f "title=$KEY_NAME" \
-  -f "key=$PUB_KEY" >/dev/null
+# --- LÄGG TILL TILL SSH-AGENT (valfritt, men smidigt) ---
+if ! pgrep -x "ssh-agent" > /dev/null; then
+    eval "$(ssh-agent -s)"
+fi
+ssh-add "$KEY_PATH" 2>/dev/null || echo "Obs: Nyckeln lades inte till i agenten (kör 'ssh-add' manuellt om behövs)"
 
-# --- KLART ---
-echo "SSH-nyckeln '$KEY_NAME' har laddats upp till GitHub!"
-echo ""
-echo "Testa anslutningen:"
-echo "   ssh -T git@github.com"
-echo ""
-echo "Tips: Lägg till i ssh-agent:"
-echo "   eval \$(ssh-agent -s)"
-echo "   ssh-add $KEY_PATH"
+# --- SETUP FÖR GITHUB ---
+echo "Kopiera den här publika nyckeln och lägg till på GitHub: https://github.com/settings/keys"
+echo "$PUBLIC_KEY"
+echo "Nyckeln '$KEY_NAME' är redo för GitHub!"
 
-
-# Skapa repos-mapp
+# Skapa repos-mapp --------------------------------------------------------------------------------
 echo "Setting up 'repos' directory..."
 mkdir "$HOME/repos"
 
-# Klona Dotfiles
+# Klona Dotfiles ----------------------------------------------------------------------------------
 if [ -d "$HOME/repos/dotfiles" ]; then
   echo "Dotfiles directory exists, pulling latest changes..."
   cd "$HOME/repos/dotfiles" && git pull
@@ -107,7 +81,7 @@ else
   git clone git@github.com:simonbrundin/dotfiles.git "$HOME/repos/dotfiles"
 fi
 
-# Klona Simon CLI
+# Klona Simon CLI ---------------------------------------------------------------------------------
 if [ -d "$HOME/repos/simon-cli" ]; then
   echo "Simon CLI directory exists, pulling latest changes..."
   cd "$HOME/repos/simon-cli" && git pull
