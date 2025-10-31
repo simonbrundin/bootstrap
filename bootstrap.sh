@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e  # Avbryt vid fel
 # echo "version: 0.0.1"
 # read -r -p "Ange användarnamn till GitHub: " GITHUB_USERNAME
 
@@ -10,11 +11,12 @@
 #
 # echo "Installing Nushell via devbox global..."
 # devbox global add nushell
+# Installera Brew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Setup SSH-keys to GitHub
 
 
-set -e  # Avbryt vid fel
 
 DEFAULT_NAME="Omarchy"
 KEY_NAME=""
