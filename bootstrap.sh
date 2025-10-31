@@ -12,7 +12,13 @@ set -e  # Avbryt vid fel
 # echo "Installing Nushell via devbox global..."
 # devbox global add nushell
 # Installera Brew
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+if command -v brew >/dev/null 2>&1; then
+    echo "Homebrew är redan installerat."
+else
+    echo "Homebrew är inte installerat. Installerar nu..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo "Installationen är klar. Lägg till Homebrew till PATH om det behövs (se instruktioner i terminalen)."
+fi
 
 # Setup SSH-keys to GitHub
 
