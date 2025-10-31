@@ -21,13 +21,20 @@ else
 fi
 
 # Setup SSH-keys to GitHub
+DEFAULT_NAME="Omarchy"  # Se till att det här är satt!
+KEY_NAME=""
+
 # --- FRÅGA EFTER NAMN ---
 echo -n "Ange namn på SSH-nyckeln [default: $DEFAULT_NAME]: "
 read USER_INPUT
-KEY_NAME="${USER_INPUT:-$DEFAULT_NAME}"  # Lägg till ':' här!
+KEY_NAME="${USER_INPUT:-$DEFAULT_NAME}"  # Med kolon för tom/default!
 
-KEY_PATH="$HOME/.ssh/id_ed25519"
-PUB_KEY_PATH="$KEY_PATH.pub"
+# Kontrollera att namnet inte är tomt (flytta hit om det inte är)
+if [[ -z "$KEY_NAME" ]]; then
+    echo "Fel: Namn på nyckeln får inte vara tomt!"
+    exit 1
+fi
+
 
 # --- 1. Kontrollera inloggning ---
 if ! gh auth status >/dev/null 2>&1; then
