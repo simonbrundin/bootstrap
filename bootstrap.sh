@@ -112,6 +112,10 @@ for dir in */; do
     stow --adopt --verbose "$dir"  # Add --verbose for more output if needed
 done
 
+# Setup Kanata ------------------------------------------------------------------------------------
+bash /home/simon/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh
+
+
 # Setup Atuin -------------------------------------------------------------------------------------
 mkdir ~/.local/share/atuin/
 # Sätt
