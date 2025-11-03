@@ -65,15 +65,49 @@ else
     echo "✅ SSH-nyckel finns redan: $KEY_PATH"
 fi
 
+# Configure SSH to use this key for GitHub
+SSH_CONFIG="$SSH_DIR/config"
+if ! grep -q "Host github.com" "$SSH_CONFIG" 2>/dev/null; then
+    echo "🔧 Konfigurerar SSH för att använda nyckeln för GitHub..."
+    {
+        echo "Host github.com"
+        echo "    HostName github.com"
+        echo "    User git"
+        echo "    IdentityFile $KEY_PATH"
+    } >> "$SSH_CONFIG"
+    chmod 600 "$SSH_CONFIG"
+fi
+
 if [[ ! -f "$KEY_PUB" ]]; then
     echo "❌ Fel: Kunde inte hitta publik nyckel: $KEY_PUB"
     exit 1
 fi
 PUBLIC_KEY=$(cat "$KEY_PUB")
 
-echo "🔑 Installerar keychain..."
-brew install keychain || { echo "❌ Kunde inte installera keychain."; exit 1; }
-eval "$(keychain --eval --quiet "$KEY_PATH")"
+echo "🔑 Startar ssh-agent och lägger till nyckel..."
+if [ -z "$SSH_AGENT_PID" ] || ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
+    eval "$(ssh-agent -s)"
+fi
+ssh-add "$KEY_PATH" || {
+    echo "❌ Fel: Kunde inte lägga till nyckel till ssh-agent!"
+    exit 1
+}
+
+echo "🔧 Försöker lägga till nyckel till GitHub med gh CLI..."
+if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+        gh ssh-key add "$KEY_PUB" --title "$KEY_NAME" && {
+            echo "✅ Nyckel tillagd till GitHub via gh CLI!"
+            exit 0
+        } || {
+            echo "❌ Kunde inte lägga till nyckel via gh CLI. Kontrollera autentisering."
+        }
+    else
+        echo "❌ gh CLI är installerat men du är inte autentiserad. Kör 'gh auth login' först."
+    fi
+else
+    echo "❌ gh CLI är inte installerat. Installera det för automatisk tillägg av nyckel."
+fi
 
 echo
 echo "📋 Kopiera den här publika nyckeln till GitHub: https://github.com/settings/keys"
