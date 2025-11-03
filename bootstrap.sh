@@ -1,23 +1,40 @@
 #!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
 
-# Installera Brew -----------------------------------------------------------------------------------
+# Logga allt till fil + terminal (valfritt)
+exec > >(tee -a "$HOME/bootstrap.log") 2>&1
+
+echo "🚀 Startar bootstrap-installation..."
+
+# --------------------------------------------------------------------------------------------------
+# 🧱 INSTALLERA HOMEBREW
+# --------------------------------------------------------------------------------------------------
 
 if command -v brew >/dev/null 2>&1; then
-    echo "Homebrew är redan installerat."
+    echo "✅ Homebrew är redan installerat."
 else
-    echo "Homebrew är inte installerat. Installerar nu..."
+    echo "📦 Installerar Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo "Installationen är klar. Lägg till Homebrew till PATH om det behövs (se instruktioner i terminalen)."
+    echo "✅ Homebrew installerat."
+
+    echo >> "$HOME/.bashrc"
+    echo 'eval "$($HOME/.linuxbrew/bin/brew shellenv)"' >> "$HOME/.bashrc"
+    eval "$($HOME/.linuxbrew/bin/brew shellenv)" || {
+        echo "⚠️ Varning: kunde inte ladda brew shellenv."
+    }
 fi
 
-# Setup SSH-keys to GitHub ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# 🔑 SETUP SSH-NYCKLAR FÖR GITHUB
+# --------------------------------------------------------------------------------------------------
 
-DEFAULT_NAME="Omarchy"  # Default-nyckelnamn (används alltid nu)
-KEY_NAME="$DEFAULT_NAME"  # Sätt direkt till default – ingen prompt!
-COMMENT="$(whoami)@$(hostname) (Omarchy $(date +%Y-%m-%d))"  # Kommentar för nyckeln
-# Kontrollera att namnet inte är tomt (säkerhetskontroll, även om det är hårdkodat)
+DEFAULT_NAME="Omarchy"
+KEY_NAME="$DEFAULT_NAME"
+COMMENT="$(whoami)@$(hostname) (Omarchy $(date +%Y-%m-%d))"
+
 if [[ -z "$KEY_NAME" ]]; then
-    echo "Fel: Namn på nyckeln får inte vara tomt!"
+    echo "❌ Fel: Namn på nyckeln får inte vara tomt!"
     exit 1
 fi
 
@@ -25,99 +42,143 @@ SSH_DIR="$HOME/.ssh"
 KEY_PATH="$SSH_DIR/$KEY_NAME"
 KEY_PUB="$KEY_PATH.pub"
 
-# Skapa .ssh-katalog om den saknas
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 
-# --- HÄMTA BEFINTLIGA NYCKLAR FRÅN GITHUB (behåll din befintliga kod här om den finns) ---
-echo "Hämtar befintliga SSH-nycklar från GitHub..."
-# Lägg in din curl/gh-kod för GitHub API här, om den finns i originalet
-
-# --- GENERERA NY NYCKEL OM DEN SAKNAS ---
+echo "🔎 Kontrollerar om SSH-nyckel '$KEY_NAME' finns..."
 if [[ ! -f "$KEY_PATH" ]]; then
-    echo "Genererar ny ed25519 SSH-nyckel med namnet '$KEY_NAME'..."
-    if ! ssh-keygen -t ed25519 -C "$COMMENT" -f "$KEY_PATH" -N ""; then
-        echo "Fel: Kunde inte generera SSH-nyckel!"
+    echo "🪄 Genererar ny ed25519 SSH-nyckel..."
+    ssh-keygen -t ed25519 -C "$COMMENT" -f "$KEY_PATH" -N "" || {
+        echo "❌ Fel: kunde inte generera SSH-nyckel!"
         exit 1
-    fi
+    }
     chmod 600 "$KEY_PATH"
     chmod 644 "$KEY_PUB"
-    echo "Nyckel genererad: $KEY_PATH"
+    echo "✅ Nyckel genererad: $KEY_PATH"
 else
-    echo "SSH-nyckel finns redan: $KEY_PATH"
+    echo "✅ SSH-nyckel finns redan: $KEY_PATH"
 fi
 
-# --- LÄS PUBLIK NYCKEL ---
 if [[ ! -f "$KEY_PUB" ]]; then
-    echo "Fel: Kunde inte hitta publik nyckel: $KEY_PUB"
+    echo "❌ Fel: Kunde inte hitta publik nyckel: $KEY_PUB"
     exit 1
 fi
 PUBLIC_KEY=$(cat "$KEY_PUB")
-echo "Publik nyckel läst från $KEY_PUB"
 
-# --- LÄGG TILL TILL SSH-AGENT (valfritt, men smidigt) ---
-if ! pgrep -x "ssh-agent" > /dev/null; then
-    eval "$(ssh-agent -s)"
-fi
-ssh-add "$KEY_PATH" 2>/dev/null || echo "Obs: Nyckeln lades inte till i agenten (kör 'ssh-add' manuellt om behövs)"
+echo "🔑 Installerar keychain..."
+brew install keychain || { echo "❌ Kunde inte installera keychain."; exit 1; }
+eval "$(keychain --eval --agents ssh "$KEY_PATH")"
 
-# --- SETUP FÖR GITHUB ---
-echo "Kopiera den här publika nyckeln och lägg till på GitHub: https://github.com/settings/keys"
+echo
+echo "📋 Kopiera den här publika nyckeln till GitHub: https://github.com/settings/keys"
+echo
 echo "$PUBLIC_KEY"
-echo "Nyckeln '$KEY_NAME' är redo för GitHub!"
+echo
 
-# Skapa repos-mapp --------------------------------------------------------------------------------
-echo "Setting up 'repos' directory..."
-mkdir "$HOME/repos"
+# --------------------------------------------------------------------------------------------------
+# 📁 SKAPA REPOS-MAPP
+# --------------------------------------------------------------------------------------------------
 
-# Klona Dotfiles ----------------------------------------------------------------------------------
+echo "📂 Skapar katalog för repositories..."
+mkdir -p "$HOME/repos"
+
+# --------------------------------------------------------------------------------------------------
+# 🧩 KLONA DOTFILES
+# --------------------------------------------------------------------------------------------------
+
 if [ -d "$HOME/repos/dotfiles" ]; then
-  echo "Dotfiles directory exists, pulling latest changes..."
-  cd "$HOME/repos/dotfiles" && git pull
+    echo "🔄 Uppdaterar befintliga dotfiles..."
+    cd "$HOME/repos/dotfiles" && git pull
 else
-  echo "Cloning Dotfiles from GitHub..."
-  echo
-  printf "\n"
-  git clone git@github.com:simonbrundin/dotfiles.git "$HOME/repos/dotfiles"
+    echo "⬇️ Klonar dotfiles..."
+    git clone git@github.com:simonbrundin/dotfiles.git "$HOME/repos/dotfiles" || {
+        echo "❌ Kunde inte klona dotfiles!"
+        exit 1
+    }
 fi
 
-# Klona Simon CLI ---------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# 🧠 KLONA SIMON CLI
+# --------------------------------------------------------------------------------------------------
+
 if [ -d "$HOME/repos/simon-cli" ]; then
-  echo "Simon CLI directory exists, pulling latest changes..."
-  cd "$HOME/repos/simon-cli" && git pull
+    echo "🔄 Uppdaterar Simon CLI..."
+    cd "$HOME/repos/simon-cli" && git pull
 else
-  echo "Cloning Simon CLI from GitHub..."
-  git clone git@github.com:simonbrundin/simon-cli.git "$HOME/repos/simon-cli"
+    echo "⬇️ Klonar Simon CLI..."
+    git clone git@github.com:simonbrundin/simon-cli.git "$HOME/repos/simon-cli" || {
+        echo "❌ Kunde inte klona Simon CLI!"
+        exit 1
+    }
 fi
 
-# Insatllera paket via Brew -----------------------------------------------------------------------
-brew bundle --file=$HOME/repos/dotfiles/brew/.Brewfile
+# --------------------------------------------------------------------------------------------------
+# 🍺 INSTALLERA PAKET VIA BREW
+# --------------------------------------------------------------------------------------------------
 
-# Sätt nushell som standardshell ----------------------------------------------------------------------
-NU_PATH=$(brew --prefix)/bin/nu
-CURRENT_SHELL=$(getent passwd $USER | cut -d: -f7)
+if [[ -f "$HOME/repos/dotfiles/brew/.Brewfile" ]]; then
+    echo "📦 Installerar paket via Brew..."
+    brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
+else
+    echo "⚠️ Ingen Brewfile hittades i dotfiles/brew/.Brewfile"
+fi
+
+# --------------------------------------------------------------------------------------------------
+# 🐚 SÄTT NUSHELL SOM STANDARDSHELL
+# --------------------------------------------------------------------------------------------------
+
+NU_PATH="$(brew --prefix)/bin/nu"
+if [[ ! -x "$NU_PATH" ]]; then
+    echo "❌ Kunde inte hitta nushell-binären ($NU_PATH)"
+    exit 1
+fi
+
+CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
 if [[ "$CURRENT_SHELL" != "$NU_PATH" ]]; then
-    echo "Setting nushell as default shell..."
-    echo "Adding $NU_PATH to /etc/shells..."
+    echo "🌀 Sätter nushell som standardshell..."
     echo "$NU_PATH" | sudo tee -a /etc/shells > /dev/null
-    sudo usermod -s $NU_PATH $USER
+    sudo usermod -s "$NU_PATH" "$USER"
 else
-    echo "Nushell is already the default shell."
+    echo "✅ Nushell är redan standardshell."
 fi
 
-# Sätt upp dotfiles med Stow ----------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# 🧷 SÄTT UPP DOTFILES MED STOW
+# --------------------------------------------------------------------------------------------------
+
+echo "🧩 Länkar dotfiles med stow..."
 cd "$HOME/repos/dotfiles"
-for dir in */; do stow "$dir"; done
 for dir in */; do
-    stow --adopt --verbose "$dir"  # Add --verbose for more output if needed
+    stow --adopt --verbose "$dir" --target="$HOME"
 done
 
-# Setup Kanata ------------------------------------------------------------------------------------
-bash /home/simon/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh
+# --------------------------------------------------------------------------------------------------
+# Starta om Chromium för att installera extensions
+# --------------------------------------------------------------------------------------------------
+
+pkill chromium
+chromium &
 
 
-# Setup Atuin -------------------------------------------------------------------------------------
-mkdir ~/.local/share/atuin/
-# Sätt
+# --------------------------------------------------------------------------------------------------
+# 🎹 FIXA KANATA-PERMISSIONER
+# --------------------------------------------------------------------------------------------------
+
+if [[ -x "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh" ]]; then
+    echo "⚙️  Kör kanata fix-privileges..."
+    bash "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh"
+else
+    echo "⚠️  Hittade inte fix-privileges.sh för Kanata."
+fi
+
+# --------------------------------------------------------------------------------------------------
+# 📜 SETUP FÖR ATUIN
+# --------------------------------------------------------------------------------------------------
+
+mkdir -p "$HOME/.local/share/atuin/"
+
 # echo "Running simon bootstrap via nushell..."
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
+
+echo
+echo "✅ Bootstrap klart! Allt ser bra ut. 🎉"
