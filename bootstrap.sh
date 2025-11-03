@@ -85,7 +85,7 @@ fi
 PUBLIC_KEY=$(cat "$KEY_PUB")
 
 echo "🔑 Startar ssh-agent och lägger till nyckel..."
-if [ -z "$SSH_AGENT_PID" ] || ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
+if ! [[ -v SSH_AGENT_PID ]] || [[ -z "$SSH_AGENT_PID" ]] || ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
     eval "$(ssh-agent -s)"
 fi
 ssh-add "$KEY_PATH" || {
@@ -98,7 +98,6 @@ if command -v gh >/dev/null 2>&1; then
     if gh auth status >/dev/null 2>&1; then
         gh ssh-key add "$KEY_PUB" --title "$KEY_NAME" && {
             echo "✅ Nyckel tillagd till GitHub via gh CLI!"
-            exit 0
         } || {
             echo "❌ Kunde inte lägga till nyckel via gh CLI. Kontrollera autentisering."
         }
