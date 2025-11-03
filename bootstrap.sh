@@ -2,27 +2,33 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Logga allt till fil + terminal (valfritt)
-exec > >(tee -a "$HOME/bootstrap.log") 2>&1
-
-echo "🚀 Startar bootstrap-installation..."
+LOG_FILE="$HOME/bootstrap.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "🚀 Startar bootstrap $(date)"
 
 # --------------------------------------------------------------------------------------------------
 # 🧱 INSTALLERA HOMEBREW
 # --------------------------------------------------------------------------------------------------
 
-if command -v brew >/dev/null 2>&1; then
-    echo "✅ Homebrew är redan installerat."
-else
+if ! command -v brew &>/dev/null; then
     echo "📦 Installerar Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo "✅ Homebrew installerat."
+fi
 
-    echo >> "$HOME/.bashrc"
-    echo 'eval "$($HOME/.linuxbrew/bin/brew shellenv)"' >> "$HOME/.bashrc"
-    eval "$($HOME/.linuxbrew/bin/brew shellenv)" || {
-        echo "⚠️ Varning: kunde inte ladda brew shellenv."
-    }
+# Detektera brew prefix
+if [[ -x "$HOME/.linuxbrew/bin/brew" ]]; then
+    BREW_PREFIX="$HOME/.linuxbrew"
+elif [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
+    BREW_PREFIX="/home/linuxbrew/.linuxbrew"
+else
+    echo "❌ Homebrew inte hittat!" >&2
+    exit 1
+fi
+eval "$($BREW_PREFIX/bin/brew shellenv)"
+
+# Lägg till i .bashrc om inte redan finns
+if ! grep -q "brew shellenv" "$HOME/.bashrc"; then
+    echo "eval \"\$($BREW_PREFIX/bin/brew shellenv)\"" >> "$HOME/.bashrc"
 fi
 
 # --------------------------------------------------------------------------------------------------
@@ -67,7 +73,7 @@ PUBLIC_KEY=$(cat "$KEY_PUB")
 
 echo "🔑 Installerar keychain..."
 brew install keychain || { echo "❌ Kunde inte installera keychain."; exit 1; }
-eval "$(keychain --eval --agents ssh "$KEY_PATH")"
+eval "$(keychain --eval --quiet "$KEY_PATH")"
 
 echo
 echo "📋 Kopiera den här publika nyckeln till GitHub: https://github.com/settings/keys"
@@ -127,48 +133,59 @@ fi
 # 🐚 SÄTT NUSHELL SOM STANDARDSHELL
 # --------------------------------------------------------------------------------------------------
 
-NU_PATH="$(brew --prefix)/bin/nu"
+NU_PATH="$($BREW_PREFIX/bin/brew --prefix nushell)/bin/nu"
 if [[ ! -x "$NU_PATH" ]]; then
-    echo "❌ Kunde inte hitta nushell-binären ($NU_PATH)"
+    echo "❌ Nushell inte installerat!" >&2
     exit 1
 fi
 
-CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
-if [[ "$CURRENT_SHELL" != "$NU_PATH" ]]; then
-    echo "🌀 Sätter nushell som standardshell..."
-    echo "$NU_PATH" | sudo tee -a /etc/shells > /dev/null
+if ! grep -q "^$NU_PATH\$" /etc/shells; then
+    echo "$NU_PATH" | sudo tee -a /etc/shells >/dev/null
+fi
+
+if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$NU_PATH" ]]; then
     sudo usermod -s "$NU_PATH" "$USER"
-else
-    echo "✅ Nushell är redan standardshell."
+    echo "✅ Nushell är nu standardshell. Starta om terminalen!"
 fi
 
 # --------------------------------------------------------------------------------------------------
 # 🧷 SÄTT UPP DOTFILES MED STOW
 # --------------------------------------------------------------------------------------------------
 
-echo "🧩 Länkar dotfiles med stow..."
+BACKUP_DIR="$HOME/.dotfiles-backup/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$BACKUP_DIR"
 cd "$HOME/repos/dotfiles"
 for dir in */; do
-    stow --adopt --verbose "$dir" --target="$HOME"
+    stow --adopt --verbose "$dir" --target="$HOME" || echo "⚠️ Hoppar över $dir"
 done
 
 # --------------------------------------------------------------------------------------------------
 # Starta om Chromium för att installera extensions
 # --------------------------------------------------------------------------------------------------
 
-pkill chromium
-chromium &
+# pkill chromium
+# chromium &
 
 
 # --------------------------------------------------------------------------------------------------
-# 🎹 FIXA KANATA-PERMISSIONER
+# 🎹 KANATA - Tangetbord
 # --------------------------------------------------------------------------------------------------
 
-if [[ -x "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh" ]]; then
-    echo "⚙️  Kör kanata fix-privileges..."
-    bash "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh"
+# chmod +x "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh"
+#if [[ -x "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh" ]]; then
+#    echo "⚙️  Kör kanata fix-privileges..."
+#    bash "$HOME/repos/dotfiles/kanata/.config/kanata/fix-privileges.sh"
+#else
+#    echo "⚠️  Hittade inte fix-privileges.sh för Kanata."
+#fi
+
+# Installera och starta Kanata
+chmod +x "$HOME/repos/dotfiles/kanata/.config/kanata/install-kanata.sh"
+if [[ -x "$HOME/repos/dotfiles/kanata/.config/kanata/install-kanata.sh" ]]; then
+    echo "⚙️  Installerar och startar Kanata..."
+    bash "$HOME/repos/dotfiles/kanata/.config/kanata/install-kanata.sh"
 else
-    echo "⚠️  Hittade inte fix-privileges.sh för Kanata."
+    echo "⚠️  Hittade inte install-kanata.sh för Kanata."
 fi
 
 # --------------------------------------------------------------------------------------------------
@@ -180,5 +197,9 @@ mkdir -p "$HOME/.local/share/atuin/"
 # echo "Running simon bootstrap via nushell..."
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
 
-echo
-echo "✅ Bootstrap klart! Allt ser bra ut. 🎉"
+# --------------------------------------------------------------------------------------------------
+# 🔚 SLUT
+# --------------------------------------------------------------------------------------------------
+
+echo "✅ Bootstrap klar! Logg: $LOG_FILE"
+echo "   Starta om terminalen för att använda Nushell."
