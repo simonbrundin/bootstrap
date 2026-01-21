@@ -163,22 +163,18 @@ else
 fi
 
 # --------------------------------------------------------------------------------------------------
-# 🐚 SÄTT NUSHELL SOM STANDARDSHELL
+# 🐚 SÄTT BASH SOM STANDARDSHELL
 # --------------------------------------------------------------------------------------------------
 
-NU_PATH="$($BREW_PREFIX/bin/brew --prefix nushell)/bin/nu"
-if [[ ! -x "$NU_PATH" ]]; then
-    echo "❌ Nushell inte installerat!" >&2
+BASH_PATH="/bin/bash"
+if [[ ! -x "$BASH_PATH" ]]; then
+    echo "❌ Bash inte hittat!" >&2
     exit 1
 fi
 
-if ! grep -q "^$NU_PATH\$" /etc/shells; then
-    echo "$NU_PATH" | sudo tee -a /etc/shells >/dev/null
-fi
-
-if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$NU_PATH" ]]; then
-    sudo usermod -s "$NU_PATH" "$USER"
-    echo "✅ Nushell är nu standardshell. Starta om terminalen!"
+if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$BASH_PATH" ]]; then
+    sudo usermod -s "$BASH_PATH" "$USER"
+    echo "✅ Bash är nu standardshell. Starta om terminalen!"
 fi
 
 # --------------------------------------------------------------------------------------------------
@@ -243,4 +239,4 @@ mkdir -p "$HOME/.local/share/atuin/"
 # --------------------------------------------------------------------------------------------------
 
 echo "✅ Bootstrap klar! Logg: $LOG_FILE"
-echo "   Starta om terminalen för att använda Nushell."
+echo "   Starta om terminalen för att använda Bash."
