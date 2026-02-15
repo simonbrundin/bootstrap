@@ -235,6 +235,18 @@ mkdir -p "$HOME/.local/share/atuin/"
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
 
 # --------------------------------------------------------------------------------------------------
+# 🚀 Öppna program
+# --------------------------------------------------------------------------------------------------
+
+echo "📱 Öppnar standardprogram..."
+omarchy-launch-browser &
+omarchy-launch-webapp https://www.messenger.com/ &
+omarchy-launch-webapp https://notion.so/simonbrundin &
+omarchy-launch-webapp https://web.telegram.org/k/#@MooniOpenClawBot &
+omarchy-launch-webapp https://grok.com
+
+
+# --------------------------------------------------------------------------------------------------
 # 🔚 SLUT
 # --------------------------------------------------------------------------------------------------
 
