@@ -235,15 +235,33 @@ mkdir -p "$HOME/.local/share/atuin/"
 # nu -c "$HOME/repos/simon-cli/simon bootstrap mac"
 
 # --------------------------------------------------------------------------------------------------
-# 🚀 Öppna program
+# 🚀 Öppna program (endast om inte redan öppna)
 # --------------------------------------------------------------------------------------------------
+
+is_window_open() {
+    local domain="$1"
+    hyprctl clients -j 2>/dev/null | grep -q "\"class\":.*$domain" 
+}
+
+launch_if_closed() {
+    local url="$1"
+    local domain
+    domain=$(echo "$url" | sed -E 's|https?://([^/]+).*|\1|' | sed 's/www\.//')
+    
+    if is_window_open "$domain"; then
+        echo "⏭️  Hoppar över $url (redan öppen)"
+    else
+        echo "📱 Öppnar $url..."
+        omarchy-launch-webapp "$url" &
+    fi
+}
 
 echo "📱 Öppnar standardprogram..."
 omarchy-launch-browser &
-omarchy-launch-webapp https://www.messenger.com/ &
-omarchy-launch-webapp https://notion.so/simonbrundin &
-omarchy-launch-webapp https://web.telegram.org/k/#@MooniOpenClawBot &
-omarchy-launch-webapp https://grok.com
+launch_if_closed "https://www.messenger.com/"
+launch_if_closed "https://notion.so/simonbrundin"
+launch_if_closed "https://web.telegram.org/k/#@MooniOpenClawBot"
+launch_if_closed "https://grok.com"
 
 
 # --------------------------------------------------------------------------------------------------
