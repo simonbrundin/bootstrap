@@ -185,7 +185,7 @@ BACKUP_DIR="$HOME/.dotfiles-backup/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 cd "$HOME/repos/dotfiles"
 for dir in */; do
-    stow --adopt --verbose "$dir" --target="$HOME" || echo "⚠️ Hoppar över $dir"
+    stow --verbose "$dir" --target="$HOME" || echo "⚠️ Hoppar över $dir"
 done
 
 # --------------------------------------------------------------------------------------------------
