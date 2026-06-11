@@ -156,8 +156,34 @@ fi
 # --------------------------------------------------------------------------------------------------
 
 if [[ -f "$HOME/repos/dotfiles/brew/.Brewfile" ]]; then
+    echo "📦 Litar på taps...
+"
+    # Trust all third-party taps to avoid "untrusted tap" errors
+    brew trust arimxyer/tap 2>/dev/null || true
+    brew trust arl/arl 2>/dev/null || true
+    brew trust boolean-maybe/tap 2>/dev/null || true
+    brew trust buildpacks/tap 2>/dev/null || true
+    brew trust charmbracelet/tap 2>/dev/null || true
+    brew trust controlplaneio-fluxcd/tap 2>/dev/null || true
+    brew trust dagger/tap 2>/dev/null || true
+    brew trust dotenvx/brew 2>/dev/null || true
+    brew trust elio-fm/elio 2>/dev/null || true
+    brew trust floatpane/matcha 2>/dev/null || true
+    brew trust fluxcd/tap 2>/dev/null || true
+    brew trust gromgit/brewtils 2>/dev/null || true
+    brew trust hashicorp/tap 2>/dev/null || true
+    brew trust marcus/tap 2>/dev/null || true
+    brew trust oven-sh/bun 2>/dev/null || true
+    brew trust teamookla/speedtest 2>/dev/null || true
+    brew trust tilt-dev/tap 2>/dev/null || true
+    brew trust vmware-tanzu/buildkit-cli-for-kubectl 2>/dev/null || true
+    brew trust antoniorodr/cronboard 2>/dev/null || true
+    brew trust loft-sh/tap 2>/dev/null || true
+    brew trust retlehs/tap 2>/dev/null || true
+    
+    echo ""
     echo "📦 Installerar paket via Brew..."
-    HOMEBREW_ALLOW_UNTRUSTED_TAPS=1 brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
+    brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
 else
     echo "⚠️ Ingen Brewfile hittades i dotfiles/brew/.Brewfile"
 fi
