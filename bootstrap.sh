@@ -157,7 +157,7 @@ fi
 
 if [[ -f "$HOME/repos/dotfiles/brew/.Brewfile" ]]; then
     echo "📦 Installerar paket via Brew..."
-    brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
+    HOMEBREW_ALLOW_UNTRUSTED_TAPS=1 brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
 else
     echo "⚠️ Ingen Brewfile hittades i dotfiles/brew/.Brewfile"
 fi
