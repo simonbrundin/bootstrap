@@ -243,7 +243,7 @@ else
     echo "⚠️  Hittade inte install-kanata.sh för Kanata."
 fi
 
-pkill kanata && sleep 1 && kanata
+pkill kanata && sleep 1 && "$HOME/.local/bin/kanata"
 
 # --------------------------------------------------------------------------------------------------
 # 🫙 DEVPOD - INSTALLERA
