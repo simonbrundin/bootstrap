@@ -125,31 +125,41 @@ mkdir -p "$HOME/repos"
 # 🧩 KLONA DOTFILES
 # --------------------------------------------------------------------------------------------------
 
-if [ -d "$HOME/repos/dotfiles" ]; then
-    echo "🔄 Uppdaterar befintliga dotfiles..."
-    cd "$HOME/repos/dotfiles" && git pull
-else
-    echo "⬇️ Klonar dotfiles..."
-    git clone git@github.com:simonbrundin/dotfiles.git "$HOME/repos/dotfiles" || {
-        echo "❌ Kunde inte klona dotfiles!"
-        exit 1
-    }
-fi
+update_or_clone() {
+    local repo_path="$1"
+    local repo_url="$2"
+    local repo_name="$3"
 
-# --------------------------------------------------------------------------------------------------
-# 🧠 KLONA SIMON CLI
-# --------------------------------------------------------------------------------------------------
+    if [[ -d "$repo_path/.git" ]]; then
+        echo "🔄 Uppdaterar befintliga $repo_name..."
+        cd "$repo_path" || return 1
+        # Säkerställ att branchen har en upstream (annars: "no tracking information")
+        local current_branch
+        current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+        if ! git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" >/dev/null 2>&1; then
+            if git remote get-url origin >/dev/null 2>&1; then
+                echo "🔗 Sätter upstream för '$current_branch' → origin/$current_branch"
+                git branch --set-upstream-to="origin/$current_branch" "$current_branch" >/dev/null 2>&1 \
+                    || echo "⚠️  Kunde inte sätta upstream för $current_branch"
+            fi
+        fi
+        if ! git pull --ff-only; then
+            echo "⚠️  Kunde inte uppdatera $repo_name automatiskt (lokala ändringar?), fortsätter ändå."
+            git status --short || true
+        fi
+    else
+        echo "⬇️ Klonar $repo_name..."
+        rm -rf "$repo_path"
+        git clone "$repo_url" "$repo_path" || {
+            echo "❌ Kunde inte klona $repo_name!"
+            return 1
+        }
+    fi
+}
 
-if [ -d "$HOME/repos/simon-cli" ]; then
-    echo "🔄 Uppdaterar Simon CLI..."
-    cd "$HOME/repos/simon-cli" && git pull
-else
-    echo "⬇️ Klonar Simon CLI..."
-    git clone git@github.com:simonbrundin/simon-cli.git "$HOME/repos/simon-cli" || {
-        echo "❌ Kunde inte klona Simon CLI!"
-        exit 1
-    }
-fi
+update_or_clone "$HOME/repos/dotfiles" "git@github.com:simonbrundin/dotfiles.git" "dotfiles"
+
+update_or_clone "$HOME/repos/simon-cli" "git@github.com:simonbrundin/simon-cli.git" "Simon CLI"
 
 # --------------------------------------------------------------------------------------------------
 # 🍺 INSTALLERA PAKET VIA BREW
@@ -183,7 +193,7 @@ if [[ -f "$HOME/repos/dotfiles/brew/.Brewfile" ]]; then
     
     echo ""
     echo "📦 Installerar paket via Brew..."
-    brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile"
+    brew bundle --file="$HOME/repos/dotfiles/brew/.Brewfile" || echo "⚠️  brew bundle rapporterade fel, fortsätter ändå."
 else
     echo "⚠️ Ingen Brewfile hittades i dotfiles/brew/.Brewfile"
 fi
@@ -199,8 +209,12 @@ if [[ ! -x "$BASH_PATH" ]]; then
 fi
 
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$BASH_PATH" ]]; then
-    sudo usermod -s "$BASH_PATH" "$USER"
-    echo "✅ Bash är nu standardshell. Starta om terminalen!"
+    if sudo -n true 2>/dev/null; then
+        sudo usermod -s "$BASH_PATH" "$USER"
+        echo "✅ Bash är nu standardshell. Starta om terminalen!"
+    else
+        echo "⚠️  Standardshell behöver ändras till $BASH_PATH. Kör: sudo usermod -s $BASH_PATH \$USER"
+    fi
 fi
 
 # --------------------------------------------------------------------------------------------------
@@ -243,14 +257,32 @@ else
     echo "⚠️  Hittade inte install-kanata.sh för Kanata."
 fi
 
-pkill kanata && sleep 1 && "$HOME/.local/bin/kanata"
+# Starta om kanata via systemd (wrappern sätter rätt config + miljövariabler)
+if systemctl --user is-enabled kanata.service >/dev/null 2>&1; then
+    echo "🔄 Startar om kanata-tjänsten..."
+    systemctl --user restart kanata.service || echo "⚠️  Kunde inte starta om kanata-tjänsten"
+else
+    echo "⚠️  kanata.service är inte aktiverad, hoppar över omstart."
+fi
 
 # --------------------------------------------------------------------------------------------------
 # 🫙 DEVPOD - INSTALLERA
 # --------------------------------------------------------------------------------------------------
 
 if ! command -v devpod &>/dev/null; then
-    curl -L -o devpod "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-amd64" && sudo install -c -m 0755 devpod /usr/local/bin && rm -f devpod
+    DEVPOD_BIN="$(curl -fsSL "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-amd64" || true)"
+    if [[ -n "$DEVPOD_BIN" ]]; then
+        if sudo -n true 2>/dev/null; then
+            echo "$DEVPOD_BIN" | sudo install -c -m 0755 /dev/stdin /usr/local/bin/devpod
+        else
+            mkdir -p "$HOME/.local/bin"
+            echo "$DEVPOD_BIN" > "$HOME/.local/bin/devpod"
+            chmod +x "$HOME/.local/bin/devpod"
+            echo "⚠️  Installerade devpod i ~/.local/bin (ingen sudo tillgänglig)"
+        fi
+    else
+        echo "⚠️  Kunde inte ladda ner devpod"
+    fi
 fi
 
 # --------------------------------------------------------------------------------------------------
